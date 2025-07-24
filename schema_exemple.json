@@ -1,0 +1,132 @@
+{
+    "cliente": {
+        "comment": "Tabela de Clientes do banco de dados",
+        "columns": [
+            {
+                "name": "cliente_id",
+                "data_type": "integer",
+                "nullable": false,
+                "default": "",
+                "comment": "ID do cliente",
+                "is_primary_key": true,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "nome",
+                "data_type": "text",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "idade",
+                "data_type": "integer",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "telefone",
+                "data_type": "integer",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "email",
+                "data_type": "text",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            }
+        ]
+    },
+    "endereco": {
+        "comment": "Tabela de endereços do cliente no banco de dados",
+        "columns": [
+            {
+                "name": "endereco_id",
+                "data_type": "integer",
+                "nullable": false,
+                "default": "",
+                "comment": "Sem comentário",
+                "is_primary_key": true,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "logradouro",
+                "data_type": "text",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "numero",
+                "data_type": "integer",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "complemento",
+                "data_type": "text",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "bairro",
+                "data_type": "text",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "cidade",
+                "data_type": "text",
+                "nullable": true,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": false,
+                "references": null
+            },
+            {
+                "name": "cliente_id_fk",
+                "data_type": "integer",
+                "nullable": false,
+                "default": null,
+                "comment": "Sem comentário",
+                "is_primary_key": false,
+                "is_foreign_key": true,
+                "references": "cliente(cliente_id)"
+            }
+        ]
+    }
+}

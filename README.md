@@ -37,7 +37,14 @@ O agente irá gerar a consulta SQL correspondente e exibi-la na tela.
 
 - Python 3.8+
 - Streamlit
+- Gerar uma chave de API na OpenAI (https://openai.com/pt-BR/)
 - Outras dependências listadas em `requirements.txt`
+
+## Arquivos
+
+- app_streamlit.py (arquivo principal do projeto)
+- .env_example (arquivo )
+- schema_example.json (modelo de schema para teste)
 
 ## Licença
 

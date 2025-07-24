@@ -47,46 +47,59 @@ def detectar_tabelas(pergunta, schema_dict):
 # ============================ Interface Streamlit ============================
 
 st.set_page_config(page_title="SQL Generator", layout="wide")
-st.markdown(
-    "<h3 style='text-align: center; font-size: 24px;'>Conversor de Perguntas em SQL</h3>",
-    unsafe_allow_html=True,
-)
+col1, col2 = st.columns([1, 1])
+with col1:
+    st.markdown(
+        "<h3 style='text-align: center; font-size: 24px;'>Conversor de Perguntas em SQL</h3>",
+        unsafe_allow_html=True,
+    )
 
-arquivo = st.file_uploader(
-    "📂 Faça upload do arquivo `schema.json`",
-    type="json",
-)
+
+col3, col4 = st.columns([1, 1])
+with col3:
+    arquivo = st.file_uploader(
+        "📂 Faça upload do arquivo `schema.json`", type="json", disabled=False
+    )
 
 if arquivo:
     schema_dict = json.load(arquivo)
-    st.success("✅ Schema carregado com sucesso!")
+    with col4:
+        st.write("")
+        st.write("")
+        st.success("✅ Schema carregado com sucesso!")
+        # st.json(schema_dict, expanded=False)
 
+    # Inicializa estados
     if "limpar_campos" not in st.session_state:
         st.session_state["limpar_campos"] = False
+    if "pergunta" not in st.session_state:
+        st.session_state["pergunta"] = ""
+    if "tabelas_detectadas" not in st.session_state:
+        st.session_state["tabelas_detectadas"] = []
 
     if st.session_state["limpar_campos"]:
         st.session_state["pergunta"] = ""
-        st.session_state["tabelas_selecionadas"] = []
+        st.session_state["tabelas_detectadas"] = []
         st.session_state["limpar_campos"] = False
         st.rerun()
 
-    if "pergunta" not in st.session_state:
-        st.session_state["pergunta"] = ""
-    if "tabelas_selecionadas" not in st.session_state:
-        st.session_state["tabelas_selecionadas"] = []
-
-    pergunta = st.text_area(
-        "💬 Pergunta em português",
-        placeholder="Ex: Gerar consulta",
-        key="pergunta",
+    # Campo de texto para a pergunta
+    pergunta_usuario = st.text_area(
+        "💬 Descreva sua consuta:",
+        value=st.session_state["pergunta"],
+        placeholder="Ex: Usar JOIN , LEFT OUTER JOIN ou INNER JOIN para unir tabelas",
     )
 
-    tabelas_detectadas = (
-        detectar_tabelas(st.session_state["pergunta"], schema_dict)
-        if st.session_state["pergunta"]
-        else []
-    )
+    # Atualiza a pergunta
+    st.session_state["pergunta"] = pergunta_usuario
 
+    # Atualiza as tabelas detectadas apenas se for a primeira vez
+    if not st.session_state["tabelas_detectadas"] and pergunta_usuario:
+        st.session_state["tabelas_detectadas"] = detectar_tabelas(
+            pergunta_usuario, schema_dict
+        )
+
+    # Nome do schema SQL
     nome_schema = st.sidebar.text_input(
         "Informe o nome do schema",
         placeholder='Exemplo: "b2b0bef6-545f-11f0-ad81-86f9ff72f4df"',
@@ -94,30 +107,33 @@ if arquivo:
 
     st.sidebar.markdown("### 📌 Tabelas e colunas")
 
+    # Widget multiselect controlado apenas por Streamlit
     tabelas_selecionadas = st.sidebar.multiselect(
         "Selecione as tabelas a usar",
         options=list(schema_dict.keys()),
-        default=tabelas_detectadas,
+        default=st.session_state["tabelas_detectadas"],
         placeholder="Selecione as tabelas",
         key="tabelas_selecionadas",
     )
 
+    # Interface para seleção de colunas
     colunas_selecionadas_por_tabela = {}
     for tabela in st.session_state["tabelas_selecionadas"]:
         st.sidebar.markdown(f"#### 🧩 Selecione colunas da tabela `{tabela}`")
         colunas = [col["name"] for col in schema_dict[tabela]["columns"]]
-
         colunas_selecionadas = []
         for col in colunas:
             if st.sidebar.checkbox(col, key=f"{tabela}_{col}"):
                 colunas_selecionadas.append(col)
-
         colunas_selecionadas_por_tabela[tabela] = colunas_selecionadas
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
+    # Botões
+    col_esq, col_meio, col_dir = st.columns([1, 5, 1])
+
+    with col_esq:
         gerar_sql = st.button("🚀 Gerar SQL")
-    with col2:
+
+    with col_dir:
         limpar = st.button("🧹 Limpar Campos")
 
     if limpar:
@@ -135,19 +151,17 @@ if arquivo:
                 st.session_state["tabelas_selecionadas"],
                 nome_schema=nome_schema,
             )
-
-            with st.expander("📖 Schema contextualizado"):
-                st.code(schema_textual, language="markdown")
+            with col4:
+                with st.expander("📖 Schema contextualizado"):
+                    st.code(schema_textual, language="markdown")
 
             colunas_contexto = ""
             for tabela, colunas in colunas_selecionadas_por_tabela.items():
                 nome_tabela = f"{nome_schema}.{tabela}" if nome_schema else tabela
-                if colunas:
-                    colunas_str = ", ".join(colunas)
-                else:
-                    colunas_str = "todas as colunas"
+                colunas_str = ", ".join(colunas) if colunas else "todas as colunas"
                 colunas_contexto += f"- {nome_tabela}: {colunas_str}\n"
 
+            # Configura LLM
             llm = ChatOpenAI(
                 temperature=0,
                 model="gpt-3.5-turbo",
@@ -168,7 +182,7 @@ O usuário selecionou as seguintes colunas para exibir na consulta:
 Considere que as tabelas estão no schema SQL chamado "{nome_schema}". Use esse schema ao referenciar as tabelas (ex: {nome_schema}.tabela).
 
 Com base nesse schema e nessas colunas, escreva apenas a consulta SQL (sem explicações) para responder à pergunta abaixo.
-Importante nunca usar apelidos ou alias para os nomes das tabelas.
+Importante: nunca use apelidos ou alias para os nomes das tabelas.
 
 Pergunta: {{pergunta}}
 SQL:""",
@@ -178,12 +192,25 @@ SQL:""",
             resposta = sql_chain.invoke({"pergunta": st.session_state["pergunta"]})
             sql_final = resposta.content.strip()
 
-            st.subheader("📌 SQL Gerada")
-            st.code(sql_final, language="sql")
-
-            st.download_button(
-                label="💾 Baixar como .sql",
-                data=sql_final.encode("utf-8"),
-                file_name="consulta.sql",
-                mime="text/sql",
-            )
+            with st.container():
+                st.markdown(
+                    """
+                    <style>
+                    div[data-testid="stContainer"] > div {
+                        border: 1px solid #cccccc;
+                        border-radius: 10px;
+                        padding: 15px;
+                        background-color: #f9f9f9;
+                        margin-bottom: 20px;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                st.code(sql_final, language="sql")
+                st.download_button(
+                    label="💾 Baixar como .sql",
+                    data=sql_final.encode("utf-8"),
+                    file_name="consulta.sql",
+                    mime="text/sql",
+                )
