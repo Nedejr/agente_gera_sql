@@ -53,7 +53,8 @@ st.markdown(
 )
 
 arquivo = st.file_uploader(
-    "📄 Envie o arquivo `schema.json` com o schema do banco", type="json"
+    "📂 Faça upload do arquivo `schema.json`",
+    type="json",
 )
 
 if arquivo:
@@ -76,8 +77,7 @@ if arquivo:
 
     pergunta = st.text_area(
         "💬 Pergunta em português",
-        value="Ex: Gerar uma consulta utilizando JOIN com as tabelas selecionadas",
-        placeholder="Ex: Gerar uma consulta utilizando JOIN com as tabelas selecionadas",
+        placeholder="Ex: Gerar consulta",
         key="pergunta",
     )
 
@@ -88,7 +88,8 @@ if arquivo:
     )
 
     nome_schema = st.sidebar.text_input(
-        "Informe o nome do schema", placeholder="Informe o nome do schema entre aspas"
+        "Informe o nome do schema",
+        placeholder='Exemplo: "b2b0bef6-545f-11f0-ad81-86f9ff72f4df"',
     ).strip()
 
     st.sidebar.markdown("### 📌 Tabelas e colunas")
@@ -103,7 +104,7 @@ if arquivo:
 
     colunas_selecionadas_por_tabela = {}
     for tabela in st.session_state["tabelas_selecionadas"]:
-        st.sidebar.markdown(f"#### 🧩 Colunas da tabela `{tabela}`")
+        st.sidebar.markdown(f"#### 🧩 Selecione colunas da tabela `{tabela}`")
         colunas = [col["name"] for col in schema_dict[tabela]["columns"]]
 
         colunas_selecionadas = []
@@ -186,5 +187,3 @@ SQL:""",
                 file_name="consulta.sql",
                 mime="text/sql",
             )
-else:
-    st.info("📂 Faça upload do arquivo `schema.json` para começar.")
