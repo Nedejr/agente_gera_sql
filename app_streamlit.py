@@ -85,9 +85,9 @@ if arquivo:
 
     # Campo de texto para a pergunta
     pergunta_usuario = st.text_area(
-        "💬 Descreva sua consuta:",
+        "💬 Descreva sua consuta : *",
         value=st.session_state["pergunta"],
-        placeholder="Ex: Usar JOIN , LEFT OUTER JOIN ou INNER JOIN para unir tabelas",
+        placeholder="Ex: Descreva sua consulta",
     )
 
     # Atualiza a pergunta
@@ -133,12 +133,91 @@ if arquivo:
     with col_esq:
         gerar_sql = st.button("🚀 Gerar SQL")
 
+    with col_meio:
+        gerar_codigo = st.button("🤖 Gerar Código Python")
+
     with col_dir:
         limpar = st.button("🧹 Limpar Campos")
 
     if limpar:
         st.session_state["limpar_campos"] = True
         st.rerun()
+
+    if gerar_codigo:
+
+        if not st.session_state["pergunta"]:
+            st.warning("❗ Digite uma pergunta para gerar a SQL.")
+        elif not st.session_state["tabelas_selecionadas"]:
+            st.warning("❗ Selecione ao menos uma tabela.")
+        else:
+            schema_textual = carregar_schema_textual(
+                schema_dict,
+                st.session_state["tabelas_selecionadas"],
+                nome_schema=nome_schema,
+            )
+            with col4:
+                with st.expander("📖 Schema contextualizado"):
+                    st.code(schema_textual, language="markdown")
+
+            colunas_contexto = ""
+            for tabela, colunas in colunas_selecionadas_por_tabela.items():
+                nome_tabela = f"{nome_schema}.{tabela}" if nome_schema else tabela
+                colunas_str = ", ".join(colunas) if colunas else "todas as colunas"
+                colunas_contexto += f"- {nome_tabela}: {colunas_str}\n"
+
+            # Configura LLM
+            llm = ChatOpenAI(
+                temperature=0,
+                model="gpt-3.5-turbo",
+                api_key=os.getenv("OPENAI_API_KEY"),
+            )
+
+            prompt = PromptTemplate(
+                input_variables=["pergunta"],
+                template=f"""
+                            Você é um assistente SQL útil que converte perguntas em português para gerar um script utilizando sqlalchemy.
+                            Sua tarefa é gerar a query considerando o seguinte schema do banco de dados PostgreSQL:
+
+                            {schema_textual}
+
+                            O usuário selecionou as seguintes colunas para exibir na consulta:
+                            {colunas_contexto}
+
+                            Considere que as tabelas estão no schema SQL chamado "{nome_schema}". Use esse schema ao referenciar as tabelas (ex: {nome_schema}.tabela).
+
+                            Com base nesse schema e nessas colunas, escreva uma função utilizando e python SqlAlchemy versão 1.4 (sem explicações) para responder à pergunta abaixo.
+                            Importante: nunca use apelidos ou alias para os nomes das tabelas.
+
+                            Pergunta: {{pergunta}}
+                            SQL:""",
+            ).partial(schema=schema_textual)
+
+            sql_chain = prompt | llm
+            resposta = sql_chain.invoke({"pergunta": st.session_state["pergunta"]})
+            sql_final = resposta.content.strip()
+
+            with st.container():
+                st.markdown(
+                    """
+                    <style>
+                    div[data-testid="stContainer"] > div {
+                        border: 1px solid #cccccc;
+                        border-radius: 10px;
+                        padding: 15px;
+                        background-color: #f9f9f9;
+                        margin-bottom: 20px;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                st.code(sql_final, language="sql")
+                st.download_button(
+                    label="💾 Baixar como .sql",
+                    data=sql_final.encode("utf-8"),
+                    file_name="consulta.sql",
+                    mime="text/sql",
+                )
 
     if gerar_sql:
         if not st.session_state["pergunta"]:
@@ -171,21 +250,21 @@ if arquivo:
             prompt = PromptTemplate(
                 input_variables=["pergunta"],
                 template=f"""
-Você é um assistente SQL útil que converte perguntas em português para SQL.
-Sua tarefa é gerar a query considerando o seguinte schema do banco de dados PostgreSQL:
+                            Você é um assistente SQL útil que converte perguntas em português para gerar um script SQL para utilizar em Postgres no PGAdmin.
+                            Sua tarefa é gerar a query considerando o seguinte schema do banco de dados PostgreSQL:
 
-{schema_textual}
+                            {schema_textual}
 
-O usuário selecionou as seguintes colunas para exibir na consulta:
-{colunas_contexto}
+                            O usuário selecionou as seguintes colunas para exibir na consulta:
+                            {colunas_contexto}
 
-Considere que as tabelas estão no schema SQL chamado "{nome_schema}". Use esse schema ao referenciar as tabelas (ex: {nome_schema}.tabela).
+                            Considere que as tabelas estão no schema SQL chamado "{nome_schema}". Use esse schema ao referenciar as tabelas (ex: {nome_schema}.tabela).
 
-Com base nesse schema e nessas colunas, escreva apenas a consulta SQL (sem explicações) para responder à pergunta abaixo.
-Importante: nunca use apelidos ou alias para os nomes das tabelas.
+                            Com base nesse schema e nessas colunas, escreva uma função utilizando e python SQL (sem explicações) para responder à pergunta abaixo.
+                            Importante: nunca use apelidos ou alias para os nomes das tabelas.
 
-Pergunta: {{pergunta}}
-SQL:""",
+                            Pergunta: {{pergunta}}
+                            SQL:""",
             ).partial(schema=schema_textual)
 
             sql_chain = prompt | llm
