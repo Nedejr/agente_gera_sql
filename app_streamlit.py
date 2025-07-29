@@ -1,12 +1,14 @@
 import json
 import os
+import shutil
+from pathlib import Path
 from dotenv import load_dotenv
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
 from langchain.schema.document import Document
+from langchain_openai import OpenAIEmbeddings
 
 # Carrega variáveis de ambiente do .env
 load_dotenv()
@@ -50,9 +52,28 @@ def schema_dict_para_documentos(schema_dict, nome_schema=""):
 def salvar_schema_no_chroma(
     schema_dict, nome_schema="", collection_name=CHROMA_COLLECTION
 ):
+    embedding = OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"))
+
+    colecao_path = Path(CHROMA_PATH) / collection_name
+    if colecao_path.exists():
+        print(colecao_path.exists())
+        st.sidebar.info(
+            f"ℹ️ A coleção `{collection_name}` já existe. Pulando criação para economizar tokens."
+        )
+
+        with st.sidebar.expander("⚙️ Opções avançadas"):
+            if st.button(
+                "🗑️ Resetar embeddings (remover coleção existente)",
+                key="resetar_embeddings",
+            ):
+                resetar_colecao_chroma()
+                st.rerun()
+        return
+
+    # Criação de nova coleção
     documentos_texto = schema_dict_para_documentos(schema_dict, nome_schema)
     docs = [Document(page_content=doc) for doc in documentos_texto]
-    embedding = OpenAIEmbeddings(api_key=os.getenv("OPENAI_API_KEY"))
+
     vectordb = Chroma.from_documents(
         documents=docs,
         embedding=embedding,
@@ -60,6 +81,8 @@ def salvar_schema_no_chroma(
         persist_directory=CHROMA_PATH,
     )
     vectordb.persist()
+
+    st.sidebar.success(f"✅ Coleção `{collection_name}` criada com sucesso.")
 
 
 def buscar_contexto_chroma(pergunta, collection_name=CHROMA_COLLECTION):
@@ -71,6 +94,15 @@ def buscar_contexto_chroma(pergunta, collection_name=CHROMA_COLLECTION):
     )
     docs_relevantes = vectordb.similarity_search(pergunta, k=4)
     return "\n\n".join([doc.page_content for doc in docs_relevantes])
+
+
+def resetar_colecao_chroma():
+    chroma_dir = Path(CHROMA_PATH)
+    if chroma_dir.exists():
+        shutil.rmtree(chroma_dir)
+        st.warning("⚠️ Todas as coleções foram removidas (diretório Chroma apagado).")
+    else:
+        st.info("ℹ️ Nenhuma coleção encontrada para remover.")
 
 
 # ============================ Interface Streamlit ============================
@@ -89,12 +121,10 @@ with col3:
         "📂 Faça upload do arquivo `schema.json`", type="json", disabled=False
     )
 
+
 if arquivo:
     schema_dict = json.load(arquivo)
     salvar_schema_no_chroma(schema_dict)
-
-    with col4:
-        st.success("✅ Schema carregado com sucesso!")
 
     if "limpar_campos" not in st.session_state:
         st.session_state["limpar_campos"] = False
